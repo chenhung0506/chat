@@ -22,6 +22,15 @@ var Scenarios = []ScenarioEnum{
 	SoaredStocks,
 }
 
+func GetScenarioByCode(code int) ScenarioEnum {
+	for _, scenario := range Scenarios {
+		if scenario.Code == code {
+			return scenario
+		}
+	}
+	return DefaultScenario
+}
+
 func GetScenarioByDesc(desc string) (ScenarioEnum, bool) {
 	for _, scenario := range Scenarios {
 		if scenario.Value == desc {

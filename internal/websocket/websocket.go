@@ -19,20 +19,89 @@ var upgrader = websocket.Upgrader{
 }
 
 func sendResponse(conn *websocket.Conn, response interface{}) {
-	// 将响应转为 JSON 并发送回客户端
 	responseJSON, err := json.Marshal(response)
 	if err != nil {
 		log.Printf("Failed to marshal response: %v", err)
 		return
 	}
-
-	err = conn.WriteMessage(websocket.TextMessage, responseJSON)
-	if err != nil {
+	if err := conn.WriteMessage(websocket.TextMessage, responseJSON); err != nil {
 		log.Printf("Failed to send response: %v", err)
+	}
+	log.Printf("Response sent: %s", string(responseJSON))
+}
+
+func onOpen(userId string, redisClient *redis.Client) error {
+	log.Printf("Connection established for userId: %s", userId)
+	if err := redisClient.IncrementOnlineUsers(); err != nil {
+		return err
+	}
+	log.Printf("Online users incremented for userId: %s", userId)
+
+	initialMessages := models.NewInitialMessages(userId)
+	if err := redisClient.SaveMessages(userId, initialMessages); err != nil {
+		log.Printf("Failed to save initial message: %v", err)
+		return err
+	}
+	log.Printf("Online users incremented for userId: %v", initialMessages)
+
+	return nil
+}
+
+func onMessage(conn *websocket.Conn, userId string, redisClient *redis.Client, message []byte) {
+	messages, err := redisClient.GetMessages(userId)
+	if err != nil {
+		log.Printf("Failed to get Messages: %v", err)
 		return
 	}
 
-	log.Printf("Response sent: %s", string(responseJSON))
+	var msg models.Message
+	if err := json.Unmarshal(message, &msg); err != nil {
+		log.Printf("Invalid message format: %v", err)
+		return
+	}
+
+	scenario, match := service.GetScenarioByDesc(msg.Mess)
+	if match {
+		msg.Code = scenario.Code
+	} else {
+		msg.Code = 0
+	}
+
+	log.Printf("previous messages: %v", messages.GetPreviousMessage())
+	log.Printf("scenario: %+v", scenario)
+
+	if messages.GetPreviousMessage().Code != 0 && !messages.GetPreviousMessage().IsFinished {
+		log.Println("excuteJobs:::::::::::::")
+		scenario = service.GetScenarioByCode(messages.GetPreviousMessage().Code)
+		handler := service.GetScenarioHandler(scenario)
+		value := handler.ExecuteJobs(msg.Mess)
+		msg.IsFinished = value.IsFinished
+		sendResponse(conn, value)
+	} else {
+		log.Println("CreateOptions:::::::::::::")
+		handler := service.GetScenarioHandler(scenario)
+		options := handler.CreateOptions()
+		msg.IsFinished = options.IsFinished
+		sendResponse(conn, options)
+	}
+	log.Println("===============================")
+	messages.AddMessage(msg)
+
+	if err := redisClient.SaveMessages(userId, messages); err != nil {
+		log.Printf("Redis save message failed: %v", err)
+	}
+}
+
+func onClose(userId string, redisClient *redis.Client) {
+	log.Printf("Connection closed for userId: %s", userId)
+	if err := redisClient.DecrementOnlineUsers(); err != nil {
+		log.Printf("Failed to decrement online users: %v", err)
+	}
+	log.Printf("Online users decremented for userId: %s", userId)
+}
+
+func onError(err error) {
+	log.Printf("WebSocket error: %v", err)
 }
 
 func WebSocketHandler(redisClient *redis.Client) http.HandlerFunc {
@@ -42,72 +111,28 @@ func WebSocketHandler(redisClient *redis.Client) http.HandlerFunc {
 			http.Error(w, "missing userId in URL", http.StatusBadRequest)
 			return
 		}
-		userId := path // userId 直接從路徑提取
-		log.Printf("Received connection for userId: %s", userId)
+		userId := path
 
-		// 升級到 WebSocket
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
-			log.Printf("Failed to upgrade connection: %v", err)
+			onError(err)
 			return
 		}
 		defer conn.Close()
-		log.Printf("Connection established for userId: %s", userId)
 
-		// 增加在線人數到 Redis
-		err = redisClient.IncrementOnlineUsers()
-		if err != nil {
-			log.Printf("Failed to update online users: %v", err)
+		if err := onOpen(userId, redisClient); err != nil {
+			onError(err)
 			return
 		}
-		defer redisClient.DecrementOnlineUsers()
+		defer onClose(userId, redisClient)
 
-		// 處理 WebSocket 消息
 		for {
-			_, msg, err := conn.ReadMessage()
+			_, message, err := conn.ReadMessage()
 			if err != nil {
-				log.Printf("Failed to read message: %v", err)
+				onError(err)
 				break
 			}
-
-			log.Printf("Raw message string: %s", string(msg))
-
-			var message models.Message
-			err = json.Unmarshal(msg, &message)
-			if err != nil {
-				log.Printf("Invalid message format: %v", err)
-			}
-
-			log.Printf("Parsed messages: %+v", message)
-
-			scenario, match := service.GetScenarioByDesc(message.Mess)
-			if match {
-				message.Code = scenario.Code
-			} else {
-				message.Code = 0
-			}
-
-			log.Printf("scenario: %+v", scenario)
-			if message.Code == 0 {
-				response := models.Response{
-					Value:      message.Mess,
-					IsFinished: true,
-					SubType:    "text",
-					Type:       "text",
-				}
-				sendResponse(conn, response)
-			} else {
-				handler := service.GetScenarioHandler(scenario)
-				options := handler.CreateOptions()
-				log.Printf("Options: %+v\n", options)
-				sendResponse(conn, options)
-			}
-
-			// 将消息存储到 Redis
-			err = redisClient.SaveMessage(userId, message)
-			if err != nil {
-				log.Printf("Redis save message failed: %v", err)
-			}
+			onMessage(conn, userId, redisClient, message)
 		}
 	}
 }

@@ -5,8 +5,8 @@ import (
 )
 
 type ScenarioHandler interface {
-	CreateOptions() models.Response
-	ExecuteJobs() string
+	CreateOptions() models.Message
+	ExecuteJobs(mess string) models.Message
 }
 
 func GetScenarioHandler(scenario ScenarioEnum) ScenarioHandler {

@@ -31,15 +31,6 @@ func (c *Client) DecrementOnlineUsers() error {
 	return c.rdb.Decr(context.Background(), "OnlineNumber").Err()
 }
 
-func (c *Client) SaveMessage(uuid string, message interface{}) error {
-	data, err := json.Marshal(message)
-	if err != nil {
-		return err
-	}
-	key := fmt.Sprintf("user:%s:messages", uuid)
-	return c.rdb.RPush(context.Background(), key, data).Err()
-}
-
 func (c *Client) GetMessages(userId string) (models.Messages, error) {
 	key := fmt.Sprintf("messages:%s", userId)
 	data, err := c.rdb.Get(context.Background(), key).Result()

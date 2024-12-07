@@ -43,13 +43,13 @@ func FromDesc(desc string) (Country, bool) {
 }
 
 // FromValue 根據值查找 Country
-func FromValue(value string) (Country, bool) {
+func FromValue(value string) Country {
 	for _, country := range Countries {
 		if strings.EqualFold(country.Value, value) {
-			return country, true
+			return country
 		}
 	}
-	return Country{}, false
+	return Country{}
 }
 
 // FromStation 根據 station 查找 Country
