@@ -1,0 +1,27 @@
+version: '3.8'
+services:
+  websocket:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3002:3002"
+    environment:
+      REDIS_ADDR: "redis:6379"
+      ELASTICSEARCH_ADDR: "http://elasticsearch:9200"
+      SERVER_PORT: "3002"
+    depends_on:
+      - redis
+      - elasticsearch
+
+  redis:
+    image: redis:6.2
+    ports:
+      - "6379:6379"
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.9
+    environment:
+      - discovery.type=single-node
+    ports:
+      - "9200:9200"
