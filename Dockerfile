@@ -1,16 +1,20 @@
-FROM golang:1.20-alpine
+FROM golang:1.20 as builder
 
 WORKDIR /app
 
 COPY go.mod go.sum ./
 RUN go mod download
 
-COPY . ./
-RUN go build -o main ./cmd/main.go
+COPY . .
 
-EXPOSE 3002
+RUN go build -o main .
+
+FROM alpine:latest
+
+RUN apk --no-cache add ca-certificates
+
+WORKDIR /root/
+
+COPY --from=builder /app/main .
+
 CMD ["./main"]
-
-
-# docker system prune -af
-# docker volume prune -f
