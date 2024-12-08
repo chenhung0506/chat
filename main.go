@@ -16,7 +16,7 @@ func init() {
 func main() {
 	redisAddr := os.Getenv("REDIS_ADDR")
 	if redisAddr == "" {
-		redisAddr = "localhost:6379"
+		redisAddr = "172.17.0.1:6379"
 	}
 
 	elasticsearchAddr := os.Getenv("ELASTICSEARCH_ADDR")

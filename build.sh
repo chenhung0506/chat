@@ -17,7 +17,7 @@ echo $SELF_IP
 
 API_IP=$SELF_IP:3002
 
-cmd="docker build -t $DOCKER_IMAGE -f $DIR/DockerFile $BUILDROOT"
+cmd="docker build --no-cache -t $DOCKER_IMAGE -f $DIR/Dockerfile $BUILDROOT"
 
 echo $cmd
 eval $cmd
