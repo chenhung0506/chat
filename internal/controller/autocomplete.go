@@ -29,14 +29,17 @@ func AutoCompleteHandler(esEndpoint string) http.HandlerFunc {
 		}
 
 		index := "autocomplete_en_index"
+		analyzer := "ngram_analyzer_en"
 		if containsChinese(query) {
 			index = "autocomplete_cn_index"
+			analyzer = "ngram_analyzer_cn"
 		}
 
+		log.Println(query)
 		// Construct Elasticsearch Query
 		esQuery := ESQuery{}
 		esQuery.Query.Match.Field.Query = query
-		esQuery.Query.Match.Field.Analyzer = "ngram_analyzer_en"
+		esQuery.Query.Match.Field.Analyzer = analyzer
 
 		queryBody, err := json.Marshal(esQuery)
 		if err != nil {

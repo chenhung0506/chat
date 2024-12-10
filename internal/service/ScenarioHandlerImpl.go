@@ -121,18 +121,17 @@ type SoaredStocksHandler struct{}
 
 func (s *SoaredStocksHandler) CreateOptions() models.Message {
 	return models.Message{
-		Value:      "歡迎使用以下功能:",
+		Value:      "功能修復中:",
 		Code:       5,
 		IsFinished: true,
-		Data:       GetScenarioValues(),
-		SubType:    "relatelist",
+		SubType:    "text",
 		Type:       "text",
 	}
 }
 
 func (s *SoaredStocksHandler) ExecuteJobs(mess string) models.Message {
 	return models.Message{
-		Value:      "歡迎使用以下功能:",
+		Value:      "功能修復中...",
 		Code:       5,
 		IsFinished: true,
 		Data:       GetScenarioValues(),
