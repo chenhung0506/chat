@@ -1,0 +1,18 @@
+version: '3.8'
+services:
+  chat:
+    image: harbor.linch.live/go/chat:latest
+    container_name: chat
+    restart: always
+    environment:
+      REDIS_ADDR: 172.17.0.1:6379
+      ELASTICSEARCH_ADDR: 172.17.0.1:9200
+      SERVER_PORT: 3002
+    ports:
+      - "3002:3002"
+    networks:
+      - nginx
+networks:
+  nginx:
+    external: true
+    name: nginx
