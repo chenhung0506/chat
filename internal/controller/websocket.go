@@ -66,7 +66,7 @@ func onMessageClient(conn *websocket.Conn, clientId string, redisClient *redis.C
 	serviceId, err := redisClient.GetServiceByClient(clientId)
 	if err == nil {
 		log.Printf("seand message from clientId: %v to serviceId: %v", clientId, serviceId)
-		var serviceConn = services[serviceId]
+		serviceConn, exists := services[serviceId]
 		var value = models.Message{
 			Value:      msg.Value,
 			Code:       6,
@@ -75,8 +75,15 @@ func onMessageClient(conn *websocket.Conn, clientId string, redisClient *redis.C
 			SubType:    "text",
 			Type:       "text",
 		}
-		sendResponse(serviceConn, value)
-		messages.AddMessage(msg)
+		if exists {
+			sendResponse(serviceConn, value)
+			messages.AddMessage(msg)
+		} else {
+			// conn, ch := Rabbitmq.connectRabbitMQ()
+			// defer conn.Close()
+			// defer ch.Close()
+		}
+
 		return
 	}
 
