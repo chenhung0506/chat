@@ -10,6 +10,7 @@ type DefaultHandler struct{}
 
 func (d *DefaultHandler) CreateOptions(userId string, redisClient *redis.Client) models.Message {
 	return models.Message{
+		UUID:       userId,
 		Value:      "歡迎使用以下功能:",
 		Code:       1,
 		IsFinished: true,
@@ -19,8 +20,9 @@ func (d *DefaultHandler) CreateOptions(userId string, redisClient *redis.Client)
 	}
 }
 
-func (d *DefaultHandler) ExecuteJobs(mess string) models.Message {
+func (d *DefaultHandler) ExecuteJobs(userId string, mess string) models.Message {
 	return models.Message{
+		UUID:       userId,
 		Value:      "歡迎使用以下功能:",
 		Code:       1,
 		IsFinished: true,
@@ -34,6 +36,7 @@ type WeeklyWeatherHandler struct{}
 
 func (w *WeeklyWeatherHandler) CreateOptions(userId string, redisClient *redis.Client) models.Message {
 	return models.Message{
+		UUID:       userId,
 		Value:      "請選擇城市:",
 		Code:       3,
 		IsFinished: false,
@@ -43,7 +46,7 @@ func (w *WeeklyWeatherHandler) CreateOptions(userId string, redisClient *redis.C
 	}
 }
 
-func (w *WeeklyWeatherHandler) ExecuteJobs(mess string) models.Message {
+func (w *WeeklyWeatherHandler) ExecuteJobs(userId string, mess string) models.Message {
 	apiURL := "http://139.162.2.175:3001/weather?country=" + models.FromValue(mess).Code
 	weatherResponse, err := ParseWeatherAPI(apiURL)
 	if err != nil {
@@ -55,6 +58,7 @@ func (w *WeeklyWeatherHandler) ExecuteJobs(mess string) models.Message {
 	}
 	log.Println(weatherResponse.Result)
 	return models.Message{
+		UUID:       userId,
 		Value:      result,
 		Code:       2,
 		IsFinished: true,
@@ -67,6 +71,7 @@ type TomorrowWeatherHandler struct{}
 
 func (t *TomorrowWeatherHandler) CreateOptions(userId string, redisClient *redis.Client) models.Message {
 	return models.Message{
+		UUID:       userId,
 		Value:      "請選擇城市:",
 		Code:       3,
 		IsFinished: false,
@@ -76,7 +81,7 @@ func (t *TomorrowWeatherHandler) CreateOptions(userId string, redisClient *redis
 	}
 }
 
-func (t *TomorrowWeatherHandler) ExecuteJobs(mess string) models.Message {
+func (t *TomorrowWeatherHandler) ExecuteJobs(userId string, mess string) models.Message {
 	apiURL := "http://139.162.2.175:3001/weather?country=" + models.FromValue(mess).Code
 	weatherResponse, err := ParseWeatherAPI(apiURL)
 	if err != nil {
@@ -88,6 +93,7 @@ func (t *TomorrowWeatherHandler) ExecuteJobs(mess string) models.Message {
 
 	log.Println(weatherResponse.Result)
 	return models.Message{
+		UUID:       userId,
 		Value:      result,
 		Code:       3,
 		IsFinished: true,
@@ -100,6 +106,7 @@ type LeaveMessageHandler struct{}
 
 func (l *LeaveMessageHandler) CreateOptions(userId string, redisClient *redis.Client) models.Message {
 	return models.Message{
+		UUID:       userId,
 		Value:      "請輸入留言:",
 		Code:       4,
 		IsFinished: false,
@@ -108,8 +115,9 @@ func (l *LeaveMessageHandler) CreateOptions(userId string, redisClient *redis.Cl
 	}
 }
 
-func (l *LeaveMessageHandler) ExecuteJobs(mess string) models.Message {
+func (l *LeaveMessageHandler) ExecuteJobs(userId string, mess string) models.Message {
 	return models.Message{
+		UUID:       userId,
 		Value:      "已收到你的留言:" + mess,
 		Code:       4,
 		IsFinished: true,
@@ -122,6 +130,7 @@ type SoaredStocksHandler struct{}
 
 func (s *SoaredStocksHandler) CreateOptions(userId string, redisClient *redis.Client) models.Message {
 	return models.Message{
+		UUID:       userId,
 		Value:      "功能修復中:",
 		Code:       5,
 		IsFinished: true,
@@ -130,8 +139,9 @@ func (s *SoaredStocksHandler) CreateOptions(userId string, redisClient *redis.Cl
 	}
 }
 
-func (s *SoaredStocksHandler) ExecuteJobs(mess string) models.Message {
+func (s *SoaredStocksHandler) ExecuteJobs(userId string, mess string) models.Message {
 	return models.Message{
+		UUID:       userId,
 		Value:      "功能修復中...",
 		Code:       5,
 		IsFinished: true,
@@ -146,19 +156,21 @@ type TransferToServiceHandler struct{}
 func (s *TransferToServiceHandler) CreateOptions(userId string, redisClient *redis.Client) models.Message {
 	redisClient.AddWaitingQueue(userId)
 	return models.Message{
-		Value:      "已轉接人工客服，請稍後...",
+		UUID:       userId,
+		Value:      "已轉接人工客服",
 		Code:       6,
-		IsFinished: true,
+		IsFinished: false,
 		SubType:    "text",
 		Type:       "text",
 	}
 }
 
-func (s *TransferToServiceHandler) ExecuteJobs(mess string) models.Message {
+func (s *TransferToServiceHandler) ExecuteJobs(userId string, mess string) models.Message {
 	return models.Message{
+		UUID:       userId,
 		Value:      "功能修復中...",
 		Code:       6,
-		IsFinished: true,
+		IsFinished: false,
 		Data:       GetScenarioValues(),
 		SubType:    "relatelist",
 		Type:       "text",

@@ -8,7 +8,6 @@ import (
 	"log"
 	"net/http"
 	"strings"
-	"sync"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -18,18 +17,6 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		return true
 	},
-}
-
-func sendResponse(conn *websocket.Conn, response interface{}) {
-	responseJSON, err := json.Marshal(response)
-	if err != nil {
-		log.Printf("Failed to marshal response: %v", err)
-		return
-	}
-	if err := conn.WriteMessage(websocket.TextMessage, responseJSON); err != nil {
-		log.Printf("Failed to send response: %v", err)
-	}
-	log.Printf("Response sent: %s", string(responseJSON))
 }
 
 func onOpen(userId string, redisClient *redis.Client) error {
@@ -63,30 +50,6 @@ func onMessageClient(conn *websocket.Conn, clientId string, redisClient *redis.C
 	}
 	msg.IsClient = true
 
-	serviceId, err := redisClient.GetServiceByClient(clientId)
-	if err == nil {
-		log.Printf("seand message from clientId: %v to serviceId: %v", clientId, serviceId)
-		serviceConn, exists := services[serviceId]
-		var value = models.Message{
-			Value:      msg.Value,
-			Code:       6,
-			IsFinished: true,
-			IsClient:   msg.IsClient,
-			SubType:    "text",
-			Type:       "text",
-		}
-		if exists {
-			sendResponse(serviceConn, value)
-			messages.AddMessage(msg)
-		} else {
-			// conn, ch := Rabbitmq.connectRabbitMQ()
-			// defer conn.Close()
-			// defer ch.Close()
-		}
-
-		return
-	}
-
 	scenario, match := service.GetScenarioByDesc(msg.Value)
 	if match {
 		msg.Code = scenario.Code
@@ -94,26 +57,53 @@ func onMessageClient(conn *websocket.Conn, clientId string, redisClient *redis.C
 		msg.Code = 0
 	}
 
+	if messages.GetPreviousMessage().Code == 6 {
+		msg.Code = 6
+	}
+
 	log.Printf("previous messages: %v", messages.GetPreviousMessage())
 	log.Printf("scenario: %+v", scenario)
 
-	if messages.GetPreviousMessage().Code != 0 && !messages.GetPreviousMessage().IsFinished {
+	if messages.GetPreviousMessage().Code == 6 && !messages.GetPreviousMessage().IsFinished {
+		var value = models.Message{
+			UUID:       clientId,
+			Value:      msg.Value,
+			Code:       6,
+			IsFinished: false,
+			IsClient:   true,
+			SubType:    "text",
+			Type:       "text",
+		}
+		messages.AddMessage(value)
+		// serviceConn, ok := models.Conn.GetService(serviceId)
+		// if ok {
+		// 	service.SendResponse(serviceConn, value)
+		// }
+
+		jsonBytes, err := json.Marshal(value)
+		if err != nil {
+			log.Fatalf("Error: %v", err)
+			return
+		}
+		service.SendMessageToMQ(jsonBytes)
+
+	} else if messages.GetPreviousMessage().Code != 0 && !messages.GetPreviousMessage().IsFinished {
 		log.Println("excuteJobs===========")
 		scenario = service.GetScenarioByCode(messages.GetPreviousMessage().Code)
 		handler := service.GetScenarioHandler(scenario)
-		value := handler.ExecuteJobs(msg.Value)
+		value := handler.ExecuteJobs(clientId, msg.Value)
 		msg.IsFinished = value.IsFinished
 		messages.AddMessage(value)
 		messages.AddMessage(msg)
-		sendResponse(conn, value)
+		service.SendResponse(conn, value)
 	} else {
 		log.Println("CreateOptions===========")
 		handler := service.GetScenarioHandler(scenario)
-		options := handler.CreateOptions(clientId, redisClient)
-		msg.IsFinished = options.IsFinished
-		messages.AddMessage(options)
+		value := handler.CreateOptions(clientId, redisClient)
+		msg.IsFinished = value.IsFinished
+		messages.AddMessage(value)
 		messages.AddMessage(msg)
-		sendResponse(conn, options)
+		service.SendResponse(conn, value)
 	}
 
 	if err := redisClient.SaveMessages(clientId, messages); err != nil {
@@ -140,22 +130,33 @@ func onMessageService(conn *websocket.Conn, serviceId string, redisClient *redis
 		return
 	}
 
-	var clientConn = clients[clientId]
-
 	var value = models.Message{
+		UUID:       serviceId,
 		Value:      msg.Value,
 		Code:       6,
-		IsFinished: true,
-		IsClient:   msg.IsClient,
+		IsFinished: false,
+		IsClient:   false,
 		SubType:    "text",
 		Type:       "text",
 	}
-	sendResponse(clientConn, value)
-	messages.AddMessage(msg)
+
+	// clientConn, ok := models.Conn.GetClient(clientId)
+	// if ok {
+	// 	service.SendResponse(clientConn, value)
+	// }
+
+	messages.AddMessage(value)
 
 	if err := redisClient.SaveMessages(clientId, messages); err != nil {
 		log.Printf("Redis save message failed: %v", err)
 	}
+
+	jsonBytes, err := json.Marshal(value)
+	if err != nil {
+		log.Fatalf("Error: %v", err)
+		return
+	}
+	service.SendMessageToMQ(jsonBytes)
 }
 
 func onClose(userId string, redisClient *redis.Client) {
@@ -166,13 +167,6 @@ func onClose(userId string, redisClient *redis.Client) {
 	redisClient.RemoveWaitingQueue(userId)
 	log.Printf("Online users decremented for userId: %s", userId)
 }
-
-var (
-	clients    = make(map[string]*websocket.Conn)
-	services   = make(map[string]*websocket.Conn)
-	clientsMu  sync.Mutex
-	servicesMu sync.Mutex
-)
 
 func HandleClient(redisClient *redis.Client) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -195,9 +189,7 @@ func HandleClient(redisClient *redis.Client) gin.HandlerFunc {
 		}
 		defer conn.Close()
 
-		clientsMu.Lock()
-		clients[clientId] = conn
-		clientsMu.Unlock()
+		models.Conn.AddClient(clientId, conn)
 
 		if err := onOpen(clientId, redisClient); err != nil {
 			log.Printf("Connect redis error: %v ", err)
@@ -237,11 +229,7 @@ func HandleService(redisClient *redis.Client) gin.HandlerFunc {
 		}
 		defer conn.Close()
 
-		servicesMu.Lock()
-		services[serviceId] = conn
-		servicesMu.Unlock()
-		service_list := redisClient.GetServiceList()
-		log.Printf("client_list: %v", service_list)
+		models.Conn.AddService(serviceId, conn)
 
 		if err := onOpen(serviceId, redisClient); err != nil {
 			log.Printf("Connect redis error: %v ", err)

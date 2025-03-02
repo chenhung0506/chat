@@ -3,9 +3,9 @@ package main
 import (
 	"chat/internal/controller"
 	"chat/internal/redis"
+	"chat/internal/service"
 	"log"
 	"os"
-
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -24,15 +24,20 @@ func getEnvWithDefault(key, defaultValue string) string {
 }
 
 func main() {
+
+	log.Println("啟動 Receiver 1")
+
 	redisAddr := getEnvWithDefault("REDIS_ADDR", "localhost:6379")
 	elasticsearchAddr := getEnvWithDefault("ELASTICSEARCH_ADDR", "http://139.162.2.175:9200")
 	port := getEnvWithDefault("SERVER_PORT", "3002")
 
 	redisClient := redis.NewClient(redisAddr, "")
 
+	go service.SetupExchange()
+	go service.ReceiveMessage("receiver_queue", redisClient)
+
 	r := gin.Default()
 
-	// 啟用 CORS
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"*"},
 		AllowMethods:     []string{"GET", "POST", "OPTIONS"},

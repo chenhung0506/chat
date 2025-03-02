@@ -7,7 +7,7 @@ import (
 
 type ScenarioHandler interface {
 	CreateOptions(userId string, redisClient *redis.Client) models.Message
-	ExecuteJobs(mess string) models.Message
+	ExecuteJobs(userId string, mess string) models.Message
 }
 
 func GetScenarioHandler(scenario ScenarioEnum) ScenarioHandler {
