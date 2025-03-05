@@ -3,6 +3,7 @@ package service
 import (
 	"chat/internal/models"
 	"chat/internal/redis"
+	"fmt"
 	"log"
 )
 
@@ -131,21 +132,22 @@ type SoaredStocksHandler struct{}
 func (s *SoaredStocksHandler) CreateOptions(userId string, redisClient *redis.Client) models.Message {
 	return models.Message{
 		UUID:       userId,
-		Value:      "功能修復中:",
+		Value:      "選擇股票類型:",
+		Data:       models.GetStockCategoryDesc(),
 		Code:       5,
-		IsFinished: true,
-		SubType:    "text",
+		IsFinished: false,
+		SubType:    "relatelist",
 		Type:       "text",
 	}
 }
 
 func (s *SoaredStocksHandler) ExecuteJobs(userId string, mess string) models.Message {
+	gainer := TopGainerHandler(mess)
 	return models.Message{
 		UUID:       userId,
-		Value:      "功能修復中...",
+		Value:      fmt.Sprintf("%s, 市值: %f, 損益: %f, 震幅: %f", models.StockNames[gainer.Symbol], gainer.ChangePct, gainer.Price, gainer.Change),
 		Code:       5,
 		IsFinished: true,
-		Data:       GetScenarioValues(),
 		SubType:    "relatelist",
 		Type:       "text",
 	}
