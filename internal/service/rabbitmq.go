@@ -11,7 +11,8 @@ import (
 
 // 連接到 RabbitMQ
 func connectRabbitMQ() (*amqp.Connection, *amqp.Channel) {
-	conn, err := amqp.Dial("amqp://guest:guest@139.162.2.175:5672/")
+	rabbitMqAddr := GetEnvWithDefault("RABBIT_MQ_ADDR", "amqp://guest:guest@139.162.2.175:5672/")
+	conn, err := amqp.Dial(rabbitMqAddr)
 	if err != nil {
 		log.Fatalf("Failed to connect to RabbitMQ: %v", err)
 	}

@@ -7,6 +7,7 @@ services:
     environment:
       REDIS_ADDR: 172.17.0.1:6379
       ELASTICSEARCH_ADDR: 172.17.0.1:9200
+      RABBIT_MQ_ADDR: 172.17.0.1:5672
       SERVER_PORT: 3002
     ports:
       - "3002:3002"
