@@ -1,9 +1,6 @@
 #!/bin/bash
-REPO=harbor.linch.live/go
-CONTAINER=chat
 # TAG=$(git rev-parse --short HEAD)-$(date '+%Y%m%d-%H%M') 
-TAG="latest"
-DOCKER_IMAGE=$REPO/$CONTAINER:$TAG
+DOCKER_IMAGE=go/chat:latest
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # BUILDROOT=$DIR/..
 BUILDROOT=$DIR/

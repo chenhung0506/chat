@@ -1,7 +1,7 @@
 version: '3.8'
 services:
   chat:
-    image: harbor.linch.live/go/chat:latest
+    image: go/chat:latest
     container_name: chat
     restart: always
     environment:
