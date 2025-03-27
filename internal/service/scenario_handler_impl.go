@@ -48,7 +48,8 @@ func (w *WeeklyWeatherHandler) CreateOptions(userId string, redisClient *redis.C
 }
 
 func (w *WeeklyWeatherHandler) ExecuteJobs(userId string, mess string) models.Message {
-	apiURL := "http://139.162.2.175:3001/weather?country=" + models.FromValue(mess).Code
+	lineBotAddr := GetEnvWithDefault("LINEBOT_ADDR", "http://139.162.40.175:3001/weather?country=")
+	apiURL := lineBotAddr + models.FromValue(mess).Code
 	weatherResponse, err := ParseWeatherAPI(apiURL)
 	if err != nil {
 		log.Fatalf("Error: %v", err)
@@ -83,7 +84,8 @@ func (t *TomorrowWeatherHandler) CreateOptions(userId string, redisClient *redis
 }
 
 func (t *TomorrowWeatherHandler) ExecuteJobs(userId string, mess string) models.Message {
-	apiURL := "http://139.162.2.175:3001/weather?country=" + models.FromValue(mess).Code
+	lineBotAddr := GetEnvWithDefault("LINEBOT_ADDR", "http://139.162.40.175:3001/weather?country=")
+	apiURL := lineBotAddr + models.FromValue(mess).Code
 	weatherResponse, err := ParseWeatherAPI(apiURL)
 	if err != nil {
 		log.Fatalf("Error: %v", err)
